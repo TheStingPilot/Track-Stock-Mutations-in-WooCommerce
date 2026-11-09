@@ -1,0 +1,497 @@
+# Copyright (C) 2026 TheStingPilot and Codex
+# This file is distributed under the GPL-2.0-or-later.
+msgid ""
+msgstr ""
+"Project-Id-Version: WooCommerce Stock Audit Log 1.0.0\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/woocommerce-stock-audit-log\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"POT-Creation-Date: 2026-11-09T20:58:50+00:00\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"X-Generator: WP-CLI 2.12.0\n"
+"X-Domain: admin_texts_wc_stock_audittrail\n"
+
+#. Plugin Name of the plugin
+#: woocommerce-stock-audit-log.php
+msgid "WooCommerce Stock Audit Log"
+msgstr ""
+
+#. Description of the plugin
+#: woocommerce-stock-audit-log.php
+msgid "Search, report on, and export WooCommerce stock quantity changes."
+msgstr ""
+
+#. Author of the plugin
+#: woocommerce-stock-audit-log.php
+msgid "TheStingPilot and Codex"
+msgstr ""
+
+#: includes/class-admin.php:36
+#: includes/class-admin.php:116
+msgid "Stock Audit Log"
+msgstr ""
+
+#: includes/class-admin.php:37
+#: includes/class-admin.php:502
+msgid "Stock Audit Settings"
+msgstr ""
+
+#: includes/class-admin.php:50
+msgid "You do not have access to this stock audit operation."
+msgstr ""
+
+#: includes/class-admin.php:69
+msgid "Product and user IDs must be positive integers."
+msgstr ""
+
+#: includes/class-admin.php:73
+msgid "Invalid stock source."
+msgstr ""
+
+#: includes/class-admin.php:82
+msgid "Use dates in YYYY-MM-DD format."
+msgstr ""
+
+#: includes/class-admin.php:116
+msgid "Stock audit reports"
+msgstr ""
+
+#: includes/class-admin.php:117
+msgid "All mutations"
+msgstr ""
+
+#: includes/class-admin.php:117
+msgid "Top 50 products"
+msgstr ""
+
+#: includes/class-admin.php:117
+#: includes/class-admin.php:335
+msgid "Manual corrections"
+msgstr ""
+
+#: includes/class-admin.php:117
+msgid "Loyverse mutations"
+msgstr ""
+
+#: includes/class-admin.php:133
+#: includes/class-admin.php:167
+#: includes/class-admin.php:223
+msgid "SKU"
+msgstr ""
+
+#: includes/class-admin.php:133
+#: includes/class-admin.php:222
+msgid "Product"
+msgstr ""
+
+#: includes/class-admin.php:133
+msgid "Mutations"
+msgstr ""
+
+#: includes/class-admin.php:138
+msgid "Export CSV"
+msgstr ""
+
+#: includes/class-admin.php:158
+msgid "Local Loyverse import history"
+msgstr ""
+
+#: includes/class-admin.php:159
+msgid "Verified stock plans from the importer. The date is when the importer verified the plan. This separate history may overlap with audit entries and is excluded from the audit CSV."
+msgstr ""
+
+#: includes/class-admin.php:166
+msgid "Verified at"
+msgstr ""
+
+#: includes/class-admin.php:168
+msgid "Expected old stock"
+msgstr ""
+
+#: includes/class-admin.php:169
+msgid "Verified stock"
+msgstr ""
+
+#: includes/class-admin.php:170
+msgid "Planned difference"
+msgstr ""
+
+#: includes/class-admin.php:171
+msgid "Receipt references"
+msgstr ""
+
+#: includes/class-admin.php:177
+msgid "Latest plans"
+msgstr ""
+
+#: includes/class-admin.php:180
+msgid "Older plans"
+msgstr ""
+
+#: includes/class-admin.php:189
+#: includes/class-admin.php:323
+msgid "From date"
+msgstr ""
+
+#: includes/class-admin.php:190
+#: includes/class-admin.php:323
+msgid "Through date"
+msgstr ""
+
+#: includes/class-admin.php:191
+msgid "Product or variation ID"
+msgstr ""
+
+#: includes/class-admin.php:192
+msgid "Exact SKU"
+msgstr ""
+
+#: includes/class-admin.php:193
+#: includes/class-admin.php:428
+msgid "User ID"
+msgstr ""
+
+#: includes/class-admin.php:194
+msgid "Order number or ID"
+msgstr ""
+
+#: includes/class-admin.php:195
+msgid "Search"
+msgstr ""
+
+#: includes/class-admin.php:208
+#: includes/class-admin.php:227
+#: includes/class-admin.php:408
+msgid "Source"
+msgstr ""
+
+#: includes/class-admin.php:208
+msgid "All sources"
+msgstr ""
+
+#: includes/class-admin.php:214
+msgid "Apply filters"
+msgstr ""
+
+#: includes/class-admin.php:215
+msgid "Clear"
+msgstr ""
+
+#: includes/class-admin.php:221
+msgid "Date and time"
+msgstr ""
+
+#: includes/class-admin.php:224
+msgid "Old stock"
+msgstr ""
+
+#: includes/class-admin.php:225
+msgid "New stock"
+msgstr ""
+
+#: includes/class-admin.php:226
+msgid "Difference"
+msgstr ""
+
+#: includes/class-admin.php:228
+msgid "User"
+msgstr ""
+
+#: includes/class-admin.php:229
+msgid "Order number"
+msgstr ""
+
+#: includes/class-admin.php:235
+msgid "WooCommerce Order"
+msgstr ""
+
+#: includes/class-admin.php:236
+msgid "Loyverse API"
+msgstr ""
+
+#: includes/class-admin.php:237
+msgid "Loyverse Import"
+msgstr ""
+
+#: includes/class-admin.php:238
+msgid "REST API"
+msgstr ""
+
+#: includes/class-admin.php:239
+msgid "WP Admin"
+msgstr ""
+
+#: includes/class-admin.php:240
+msgid "WP Cron"
+msgstr ""
+
+#: includes/class-admin.php:241
+msgid "WP-CLI"
+msgstr ""
+
+#: includes/class-admin.php:242
+msgid "Unknown"
+msgstr ""
+
+#. translators: %d: ID of the product managing the stock.
+#: includes/class-admin.php:261
+#, php-format
+msgid "Stock managed by product #%d."
+msgstr ""
+
+#. translators: %s: Comma-separated Loyverse receipt references.
+#: includes/class-admin.php:264
+#, php-format
+msgid "Receipts: %s"
+msgstr ""
+
+#. translators: %s: Loyverse receipt reference.
+#: includes/class-admin.php:267
+#, php-format
+msgid "Receipt: %s"
+msgstr ""
+
+#: includes/class-admin.php:306
+msgid "The end date must be on or after the start date."
+msgstr ""
+
+#. translators: %d: ID of the product or variation.
+#: includes/class-admin.php:313
+#, php-format
+msgid "Product or variation #%d"
+msgstr ""
+
+#. translators: %s: Product or variation name.
+#: includes/class-admin.php:317
+#, php-format
+msgid "Stock history — %s"
+msgstr ""
+
+#: includes/class-admin.php:318
+#: includes/class-admin.php:425
+msgid "Back to Stock Audit Log"
+msgstr ""
+
+#. translators: %d: ID of the stock owner.
+#: includes/class-admin.php:320
+#, php-format
+msgid "Stock owner #%d. Shared stock is shown together. Variations with their own stock have separate histories."
+msgstr ""
+
+#: includes/class-admin.php:326
+msgid "Apply dates"
+msgstr ""
+
+#: includes/class-admin.php:327
+msgid "All retained history"
+msgstr ""
+
+#: includes/class-admin.php:336
+msgid "Loyverse"
+msgstr ""
+
+#: includes/class-admin.php:337
+msgid "WooCommerce orders"
+msgstr ""
+
+#: includes/class-admin.php:338
+msgid "Other sources"
+msgstr ""
+
+#: includes/class-admin.php:364
+msgid "Stock reconciliation"
+msgstr ""
+
+#: includes/class-admin.php:365
+msgid "Opening stock is the quantity before the first retained change in the selected period. Closing stock is the last logged quantity. Current stock is read from WooCommerce."
+msgstr ""
+
+#: includes/class-admin.php:368
+msgid "First recorded stock"
+msgstr ""
+
+#: includes/class-admin.php:368
+msgid "Opening stock"
+msgstr ""
+
+#: includes/class-admin.php:369
+msgid "Total added"
+msgstr ""
+
+#: includes/class-admin.php:370
+msgid "Total removed"
+msgstr ""
+
+#: includes/class-admin.php:371
+msgid "Calculated closing stock"
+msgstr ""
+
+#: includes/class-admin.php:372
+msgid "Last logged closing stock"
+msgstr ""
+
+#: includes/class-admin.php:373
+msgid "Current WooCommerce stock"
+msgstr ""
+
+#: includes/class-admin.php:382
+msgid "Last logged closing stock matches WooCommerce."
+msgstr ""
+
+#. translators: %s: Difference between current and logged stock.
+#: includes/class-admin.php:385
+#, php-format
+msgid "Stock discrepancy: current WooCommerce stock minus last logged closing stock is %s."
+msgstr ""
+
+#. translators: %s: Difference between logged and calculated stock.
+#: includes/class-admin.php:390
+#, php-format
+msgid "Audit discrepancy: logged closing stock minus calculated closing stock is %s."
+msgstr ""
+
+#: includes/class-admin.php:393
+msgid "The first audit entry establishes the starting quantity. The quantity before that entry is unknown."
+msgstr ""
+
+#. translators: %d: Number of changes with an unknown quantity.
+#: includes/class-admin.php:397
+#, php-format
+msgid "Changes without two numeric stock values: %d. They are excluded from the added and removed totals."
+msgstr ""
+
+#: includes/class-admin.php:400
+msgid "This period has ended. Current stock can include later changes."
+msgstr ""
+
+#: includes/class-admin.php:403
+msgid "Changes by source"
+msgstr ""
+
+#: includes/class-admin.php:408
+msgid "Added"
+msgstr ""
+
+#: includes/class-admin.php:408
+msgid "Removed"
+msgstr ""
+
+#: includes/class-admin.php:410
+msgid "Individual stock changes"
+msgstr ""
+
+#: includes/class-admin.php:422
+msgid "Stock audit entry not found."
+msgstr ""
+
+#: includes/class-admin.php:424
+msgid "Stock audit entry"
+msgstr ""
+
+#: includes/class-admin.php:428
+msgid "Product ID"
+msgstr ""
+
+#: includes/class-admin.php:428
+msgid "Variation ID"
+msgstr ""
+
+#: includes/class-admin.php:429
+msgid "Request URI"
+msgstr ""
+
+#: includes/class-admin.php:429
+msgid "IP address"
+msgstr ""
+
+#: includes/class-admin.php:429
+msgid "Notes"
+msgstr ""
+
+#. translators: %s: Product name.
+#: includes/class-admin.php:446
+#, php-format
+msgid "View stock audit history for %s"
+msgstr ""
+
+#: includes/class-admin.php:447
+#: includes/class-admin.php:454
+msgid "Stock Audit History"
+msgstr ""
+
+#: includes/class-admin.php:462
+msgid "Open stock reconciliation"
+msgstr ""
+
+#: includes/class-admin.php:470
+msgid "Latest stock mutations"
+msgstr ""
+
+#: includes/class-admin.php:482
+#: includes/class-log-table.php:58
+msgid "No stock mutations found."
+msgstr ""
+
+#: includes/class-admin.php:485
+msgid "Stock audit report"
+msgstr ""
+
+#: includes/class-admin.php:504
+msgid "Settings saved."
+msgstr ""
+
+#: includes/class-admin.php:508
+msgid "Retention"
+msgstr ""
+
+#. translators: %s: Formatted number of days.
+#: includes/class-admin.php:512
+#, php-format
+msgid "%s day"
+msgid_plural "%s days"
+msgstr[0] ""
+msgstr[1] ""
+
+#. translators: %s: Formatted number of days.
+#: includes/class-admin.php:512
+msgid "Unlimited"
+msgstr ""
+
+#: includes/class-admin.php:514
+msgid "Scheduled cleanup permanently removes entries older than the selected retention period."
+msgstr ""
+
+#: includes/class-admin.php:524
+msgid "The retention setting could not be saved."
+msgstr ""
+
+#: includes/class-admin.php:536
+msgid "The CSV stream could not be opened."
+msgstr ""
+
+#: includes/class-log-table.php:25
+msgid "Receipt reference and notes"
+msgstr ""
+
+#: includes/class-log-table.php:44
+msgid "Stock audit entries"
+msgstr ""
+
+#: includes/class-storage.php:30
+msgid "Activate Stock Audit Log individually on each site."
+msgstr ""
+
+#: includes/class-storage.php:36
+msgid "The Stock Audit Log schema file could not be read."
+msgstr ""
+
+#: includes/class-storage.php:52
+msgid "The Stock Audit Log tables could not be created."
+msgstr ""
+
+#: woocommerce-stock-audit-log.php:52
+msgid "WooCommerce Stock Audit Log requires WooCommerce 9.1 or newer."
+msgstr ""

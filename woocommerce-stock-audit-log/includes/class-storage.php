@@ -12,7 +12,7 @@ defined( 'ABSPATH' ) || exit;
 final class Storage {
 	const CLEANUP_HOOK = 'stock_audit_log_cleanup';
 	const RETENTION    = array( 0, 30, 90, 180, 365 );
-	const SOURCES      = array( 'WooCommerce Order', 'Loyverse API', 'REST API', 'WP Admin', 'WP Cron', 'WP-CLI', 'Unknown' );
+	const SOURCES      = array( 'WooCommerce Order', 'Loyverse API', 'Loyverse Import', 'REST API', 'WP Admin', 'WP Cron', 'WP-CLI', 'Unknown' );
 
 	public static function table(): string {
 		global $wpdb;
@@ -27,13 +27,13 @@ final class Storage {
 	public static function activate( bool $network_wide ): void {
 		global $wpdb;
 		if ( $network_wide ) {
-			wp_die( esc_html__( 'Activate Stock Audit Log individually on each site.', 'woocommerce-stock-audit-log' ) );
+			wp_die( esc_html__( 'Activate Stock Audit Log individually on each site.', 'admin_texts_wc_stock_audittrail' ) );
 		}
 
 		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 		$sql = file_get_contents( dirname( __DIR__ ) . '/sql/schema.sql' );
 		if ( false === $sql ) {
-			wp_die( esc_html__( 'The Stock Audit Log schema file could not be read.', 'woocommerce-stock-audit-log' ) );
+			wp_die( esc_html__( 'The Stock Audit Log schema file could not be read.', 'admin_texts_wc_stock_audittrail' ) );
 		}
 
 		dbDelta(
@@ -49,7 +49,7 @@ final class Storage {
 
 		foreach ( array( self::table(), self::settings_table() ) as $table ) {
 			if ( $table !== $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $table ) ) ) ) {
-				wp_die( esc_html__( 'The Stock Audit Log tables could not be created.', 'woocommerce-stock-audit-log' ) );
+				wp_die( esc_html__( 'The Stock Audit Log tables could not be created.', 'admin_texts_wc_stock_audittrail' ) );
 			}
 		}
 
@@ -121,6 +121,11 @@ final class Storage {
 			$args[]  = $filters[ $field ];
 		}
 
+		if ( ! empty( $filters['loyverse_only'] ) ) {
+			$parts[] = 'source IN (%s, %s)';
+			array_push( $args, 'Loyverse API', 'Loyverse Import' );
+		}
+
 		if ( isset( $filters['order_number'] ) && '' !== $filters['order_number'] ) {
 			$number  = ltrim( $filters['order_number'], '#' );
 			$parts[] = ctype_digit( $number ) ? '(order_number = %s OR order_id = %d)' : 'order_number = %s';
@@ -134,6 +139,13 @@ final class Storage {
 			$parts[] = '(product_id = %d OR variation_id = %d)';
 			$args[]  = $filters['product_id'];
 			$args[]  = $filters['product_id'];
+		}
+
+		if ( ! empty( $filters['stock_owner'] ) ) {
+			$owner = $filters['stock_owner'];
+			$parts[] = '((variation_id = %d AND (notes IS NULL OR notes NOT LIKE %s))
+				OR (product_id = %d AND (variation_id IS NULL OR notes LIKE %s)))';
+			array_push( $args, $owner, 'Stock managed by product #%', $owner, "Stock managed by product #{$owner}.%" );
 		}
 
 		foreach ( array( 'from', 'until' ) as $boundary ) {
@@ -172,6 +184,31 @@ final class Storage {
 		) ?? array();
 	}
 
+	/**
+	 * Aggregate both directions independently across the full selected history.
+	 */
+	public static function stock_summary( array $filters ): array {
+		global $wpdb;
+		list( $where, $args ) = self::where( $filters );
+		$args = array_merge( array( self::table() ), $args );
+		$first = $wpdb->get_row(
+			$wpdb->prepare( "SELECT old_stock, new_stock FROM %i{$where} ORDER BY timestamp, id LIMIT 1", $args )
+		);
+		$last = $wpdb->get_row(
+			$wpdb->prepare( "SELECT new_stock FROM %i{$where} ORDER BY timestamp DESC, id DESC LIMIT 1", $args )
+		);
+		$totals = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT source, SUM(GREATEST(COALESCE(difference, 0), 0)) AS added,
+					SUM(GREATEST(-COALESCE(difference, 0), 0)) AS removed,
+					COUNT(*) - COUNT(difference) AS unknown
+				FROM %i{$where} GROUP BY source",
+				$args
+			)
+		);
+		return array( $first, $last, $totals ?? array() );
+	}
+
 	public static function count( array $filters ): int {
 		global $wpdb;
 		list( $where, $args ) = self::where( $filters );
@@ -183,6 +220,31 @@ final class Storage {
 	public static function get( int $id ): ?object {
 		global $wpdb;
 		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id = %d', self::table(), $id ) );
+	}
+
+	/**
+	 * Read retained, verified stock plans from the local Loyverse importer.
+	 */
+	public static function loyverse_history( int $before_id ): array {
+		global $wpdb;
+		$table = $wpdb->prefix . 'vslvw_stock_plans';
+		if ( $table !== $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $table ) ) ) ) {
+			return array();
+		}
+
+		$cursor = $before_id ? ' AND id < %d' : '';
+		$args   = array( $table, 'VERIFIED' );
+		if ( $before_id ) {
+			$args[] = $before_id;
+		}
+		return $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT id, updated_at, sku, expected_old_stock, planned_new_stock, stock_delta, receipt_numbers
+				FROM %i WHERE status = %s AND actual_stock = planned_new_stock AND stock_delta <> 0{$cursor}
+				ORDER BY id DESC LIMIT 51",
+				$args
+			)
+		) ?? array();
 	}
 
 	public static function top_products( array $filters ): array {

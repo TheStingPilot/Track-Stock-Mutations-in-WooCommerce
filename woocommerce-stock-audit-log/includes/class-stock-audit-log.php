@@ -204,6 +204,38 @@ final class Stock_Audit_Log {
 		return array( 0, $stock_product && $stock_product->is_type( 'variation' ) ? $stock_product->get_id() : 0 );
 	}
 
+	/**
+	 * Match the local Loyverse importer's stock-plan save and read its receipt references.
+	 *
+	 * @return string[]|null Receipt references, or null outside the importer.
+	 */
+	private function loyverse_receipts( int $stock_id ): ?array {
+		if ( ! class_exists( 'Loyverse_Sales_In_WooCommerce', false ) ) {
+			return null;
+		}
+
+		foreach ( debug_backtrace( DEBUG_BACKTRACE_PROVIDE_OBJECT, 40 ) as $frame ) {
+			if ( 'Loyverse_Sales_In_WooCommerce' !== ( $frame['class'] ?? '' ) || 'apply_or_recover_stock_plan' !== $frame['function'] ) {
+				continue;
+			}
+			$update  = $frame['args'][0] ?? array();
+			$product = $update['product'] ?? null;
+			if ( ! $product instanceof \WC_Product || $stock_id !== (int) $product->get_id() ) {
+				return null;
+			}
+
+			$receipts = array();
+			foreach ( (array) ( $update['receipt_numbers'] ?? array() ) as $receipt ) {
+				if ( is_scalar( $receipt ) && preg_match( '/^[a-zA-Z0-9_.:\/-]{1,120}$/D', (string) $receipt ) ) {
+					$receipts[] = (string) $receipt;
+				}
+			}
+			sort( $receipts, SORT_STRING );
+			return array_unique( $receipts );
+		}
+		return null;
+	}
+
 	public static function detect_source( int $order_id = 0 ): string {
 		if ( $order_id > 0 ) {
 			return 'WooCommerce Order';
@@ -249,7 +281,8 @@ final class Stock_Audit_Log {
 		$product = $product ?: $owner;
 		$variation_id = $product->is_type( 'variation' ) ? $product->get_id() : null;
 		$product_id = $variation_id ? $product->get_parent_id() : $stock_id;
-		$source = self::detect_source( $order_id );
+		$receipts = $order_id ? null : $this->loyverse_receipts( $stock_id );
+		$source   = null !== $receipts ? 'Loyverse Import' : self::detect_source( $order_id );
 		$order  = $order_id ? wc_get_order( $order_id ) : false;
 		$user   = wp_get_current_user();
 		$rest   = defined( 'REST_REQUEST' ) && REST_REQUEST;
@@ -259,6 +292,9 @@ final class Stock_Audit_Log {
 
 		if ( $product->get_id() !== $stock_id ) {
 			$notes[] = sprintf( 'Stock managed by product #%d.', $stock_id );
+		}
+		if ( $receipts ) {
+			$notes[] = 'Receipts: ' . implode( ', ', $receipts );
 		}
 		if ( 'Loyverse API' === $source ) {
 			$receipt = self::server( 'HTTP_X_LOYVERSE_RECEIPT' );
