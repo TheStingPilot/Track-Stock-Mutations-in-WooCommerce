@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.0 — 2026-11-10
+
+- Flag the first mismatch between consecutive stock entries for a product or variation, with the time, signed quantity difference, and links to both entries.
+- Add a **Stock audit diagnostics** dashboard widget with capture failure counts, the latest occurrence per type, and a link to the affected stock owner.
+- Separate lock timeouts from database errors in diagnostics and WooCommerce logs.
+
 ## 1.0.1 — 2026-11-09
 
 - Store and display stock quantities as whole units using `DECIMAL(12,0)`.

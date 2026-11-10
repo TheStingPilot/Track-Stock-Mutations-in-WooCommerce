@@ -101,9 +101,14 @@ final class Stock_Audit_Log {
 	private function begin( string $route, int $id ): void {
 		global $wpdb;
 		$lock = 'wsal:' . substr( hash( 'sha256', DB_NAME . '/' . $wpdb->postmeta . '/' . $id ), 0, 55 );
-		if ( '1' !== (string) $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s, %d)', $lock, 2 ) ) ) {
+		$result = (string) $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s, %d)', $lock, 2 ) );
+		if ( '1' !== $result ) {
 			$this->pending[ $route ][ $id ][] = null;
-			$this->warn( 'Could not acquire the stock snapshot lock.', $id );
+			if ( '0' === $result ) {
+				$this->warn( 'lock_timeout', 'Could not acquire the stock snapshot lock before the timeout.', $id );
+			} else {
+				$this->warn( 'lock_error', 'Could not acquire the stock snapshot lock due to a database error.', $id );
+			}
 			return;
 		}
 
@@ -112,7 +117,7 @@ final class Stock_Audit_Log {
 		} catch ( \RuntimeException $error ) {
 			$this->release( $lock );
 			$this->pending[ $route ][ $id ][] = null;
-			$this->warn( $error->getMessage(), $id );
+			$this->warn( 'snapshot_error', $error->getMessage(), $id );
 		}
 	}
 
@@ -141,7 +146,7 @@ final class Stock_Audit_Log {
 			}
 			$this->record( $id, $old, $new );
 		} catch ( \RuntimeException $error ) {
-			$this->warn( $error->getMessage(), $id );
+			$this->warn( 'snapshot_error', $error->getMessage(), $id );
 		} finally {
 			$this->release( $entry['lock'] );
 		}
@@ -274,7 +279,7 @@ final class Stock_Audit_Log {
 		list( $order_id, $variation_id ) = $this->order_context( $stock_id );
 		$owner = wc_get_product( $stock_id );
 		if ( ! $owner ) {
-			$this->warn( 'Could not resolve the product for an observed stock change.', $stock_id );
+			$this->warn( 'product_missing', 'Could not resolve the product for an observed stock change.', $stock_id );
 			return;
 		}
 		$product = $variation_id && $variation_id !== $stock_id ? wc_get_product( $variation_id ) : $owner;
@@ -330,14 +335,19 @@ final class Stock_Audit_Log {
 				'notes'        => $notes ? implode( "\n", $notes ) : null,
 			)
 		) ) {
-			$this->warn( 'Could not insert a stock audit entry.', $stock_id );
+			$this->warn( 'insert_error', 'Could not insert a stock audit entry.', $stock_id );
 		}
 	}
 
-	private function warn( string $message, int $id ): void {
+	private function warn( string $type, string $message, int $id ): void {
+		$saved = Storage::record_failure( $type, $id );
 		wc_get_logger()->error(
 			sprintf( '%s Stock owner ID: %d.', $message, $id ),
-			array( 'source' => 'woocommerce-stock-audit-log' )
+			array(
+				'source'           => 'woocommerce-stock-audit-log',
+				'failure_type'     => $type,
+				'diagnostic_saved' => $saved,
+			)
 		);
 	}
 }

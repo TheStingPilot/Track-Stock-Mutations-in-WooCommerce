@@ -9,11 +9,12 @@
 | `includes/class-storage.php` | Database setup, reads, writes, filters, and retention |
 | `includes/class-admin.php` | Administration, product history, reports, and CSV |
 | `includes/class-log-table.php` | Paged mutation list |
-| `sql/schema.sql` | Database definitions used by activation |
+| `sql/schema.sql` | Audit and settings table definitions used by activation |
+| `sql/diagnostics.sql` | Capture failure counter table used by activation and existing installations |
 
 ## Database
 
-Activation loads the schema with `dbDelta()`. For a manual SQL installation, substitute the site's prefixed table names for `{{audit_table}}` and `{{settings_table}}`, and substitute its character set and collation clause for `{{collation}}`. The standard prefix results in `wp_stock_audit_log` and `wp_stock_audit_settings`. Activate the plugin to schedule cleanup.
+Activation loads the schema with `dbDelta()`. For a manual SQL installation, substitute the site's prefixed table names for `{{audit_table}}` and `{{settings_table}}`, and substitute its character set and collation clause for `{{collation}}`. The standard prefix results in `wp_stock_audit_log` and `wp_stock_audit_settings`. For a manual diagnostics installation, substitute the prefixed diagnostics table name for `%i` and the character set and collation clause for `{{collation}}` in `sql/diagnostics.sql`. Activate the plugin to schedule cleanup.
 
 The audit table records the product identity at the time of the change. A variation entry uses the parent ID in `product_id` and the variation ID in `variation_id`. If a known variation uses its parent's stock, the values refer to the parent's stock and the notes identify the stock owner. If the writer supplies only the parent, the entry identifies the parent. A missing quantity is SQL `NULL`. The difference is available when both quantities exist. The three quantity columns use signed `DECIMAL(12,0)`. New snapshots are rounded to whole units before calculating the difference. Audit processing does not change WooCommerce stock.
 
@@ -91,6 +92,14 @@ Use the address supplied by the web server for request attribution. Configure pr
 A product link opens the stock owner recorded by the audit entry. The query uses the product and variation IDs and the shared-stock marker in audit notes. Historical owner attribution remains tied to the write even if a variation's stock settings change. Date filters use the site's local dates and are converted to UTC. Totals aggregate all matching retained audit entries. The detailed rows are paginated.
 
 Opening and closing come from the first and last audit snapshots, ordered by UTC timestamp and ID. Where the first entry establishes the initial stock, its resulting quantity supplies the baseline. Entries without a numeric delta are excluded from directional totals. The calculation is withheld if any other entry lacks a numeric delta. The current WooCommerce quantity is displayed separately, so a difference remains visible. Matching balances verify the totals shown and can still occur if unlogged changes cancel each other out. Verified importer plans remain a separate view to avoid counting the same stock write twice.
+
+## Audit continuity and diagnostics
+
+The stock reconciliation checks consecutive audit rows for the selected stock owner in UTC timestamp and ID order. For a filtered start date, the immediately preceding retained entry can establish the opening boundary. The check reads only the required columns in batches of 500 and stops at the first numeric mismatch. It reports the next entry's local time, both quantities, and the signed difference (next opening minus previous closing). A missing quantity prevents comparison across that boundary. A continuous chain can still omit changes that leave no visible difference between stored snapshots.
+
+Capture failure counters are stored in the prefixed `stock_audit_failures` table. An atomic upsert increments the count and records the latest UTC time and stock owner per failure type. The table is created on activation or on first use after upgrading. Categories are lock timeout, lock database error, snapshot error, audit insert error, and unresolved stock owner. Counters are cumulative from 1.1.0 and independent of audit retention. The table stores summaries without a row per incident. WooCommerce logs still record each detected failure, including when the diagnostics write itself fails. Failures before the stock write count as capture failures even if the subsequent stock write is unsuccessful.
+
+The successful capture path makes no diagnostic queries. The continuity scan runs only on the stock reconciliation screen and may read the full selected history when every pair matches.
 
 ## Performance impact
 

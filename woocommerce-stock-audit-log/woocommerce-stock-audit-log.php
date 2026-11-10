@@ -2,7 +2,7 @@
 /**
  * Plugin Name: WooCommerce Stock Audit Log
  * Description: Search, report on, and export WooCommerce stock quantity changes.
- * Version: 1.0.1
+ * Version: 1.1.0
  * Requires at least: 6.5
  * Requires PHP: 8.1
  * Requires Plugins: woocommerce

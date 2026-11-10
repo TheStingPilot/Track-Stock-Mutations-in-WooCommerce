@@ -19,6 +19,11 @@ final class Storage {
 		return $wpdb->prefix . 'stock_audit_log';
 	}
 
+	private static function failure_table(): string {
+		global $wpdb;
+		return $wpdb->prefix . 'stock_audit_failures';
+	}
+
 	private static function settings_table(): string {
 		global $wpdb;
 		return $wpdb->prefix . 'stock_audit_settings';
@@ -51,6 +56,10 @@ final class Storage {
 			if ( $table !== $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $table ) ) ) ) {
 				wp_die( esc_html__( 'The Stock Audit Log tables could not be created.', 'admin_texts_wc_stock_audittrail' ) );
 			}
+		}
+
+		if ( ! self::create_failure_table() ) {
+			wp_die( esc_html__( 'The audit diagnostics table could not be created.', 'admin_texts_wc_stock_audittrail' ) );
 		}
 
 		if ( ! self::upgrade_quantities() ) {
@@ -137,6 +146,52 @@ final class Storage {
 			$row,
 			array( '%s', '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%d', '%s', '%s', '%s', '%s' )
 		);
+	}
+
+	private static function create_failure_table(): bool {
+		global $wpdb;
+		$sql = file_get_contents( dirname( __DIR__ ) . '/sql/diagnostics.sql' );
+		if ( false === $sql ) {
+			return false;
+		}
+		$sql = str_replace( '{{collation}}', $wpdb->get_charset_collate(), $sql );
+		return false !== $wpdb->query( $wpdb->prepare( $sql, self::failure_table() ) );
+	}
+
+	public static function record_failure( string $type, int $stock_owner_id ): bool {
+		global $wpdb;
+		$query = $wpdb->prepare(
+			'INSERT INTO %i (failure_type, occurrences, last_seen, stock_owner_id) VALUES (%s, 1, UTC_TIMESTAMP(), %d)
+			ON DUPLICATE KEY UPDATE occurrences = occurrences + 1, last_seen = UTC_TIMESTAMP(), stock_owner_id = %d',
+			self::failure_table(),
+			$type,
+			$stock_owner_id,
+			$stock_owner_id
+		);
+		$previous = $wpdb->suppress_errors( true );
+		try {
+			if ( false !== $wpdb->query( $query ) ) {
+				return true;
+			}
+			return self::create_failure_table() && false !== $wpdb->query( $query );
+		} finally {
+			$wpdb->suppress_errors( $previous );
+		}
+	}
+
+	public static function failures(): ?array {
+		global $wpdb;
+		$query = $wpdb->prepare( 'SELECT * FROM %i ORDER BY last_seen DESC, failure_type', self::failure_table() );
+		$previous = $wpdb->suppress_errors( true );
+		try {
+			$rows = $wpdb->get_results( $query );
+			if ( '' !== $wpdb->last_error && self::create_failure_table() ) {
+				$rows = $wpdb->get_results( $query );
+			}
+			return '' === $wpdb->last_error && is_array( $rows ) ? $rows : null;
+		} finally {
+			$wpdb->suppress_errors( $previous );
+		}
 	}
 
 	public static function retention(): int {
@@ -275,6 +330,56 @@ final class Storage {
 			)
 		);
 		return array( $first, $last, $totals ?? array() );
+	}
+
+	/**
+	 * Find the first broken pair, including the pair at a selected start date.
+	 *
+	 * @return array|null The two entries, an empty array if none, or null on query failure.
+	 */
+	public static function first_stock_gap( array $filters ): ?array {
+		global $wpdb;
+		$previous = null;
+		if ( ! empty( $filters['from'] ) ) {
+			$before = array( 'stock_owner' => $filters['stock_owner'], 'until' => $filters['from'] );
+			list( $where, $args ) = self::where( $before );
+			$previous = $wpdb->get_row(
+				$wpdb->prepare(
+					"SELECT id, timestamp, new_stock FROM %i{$where} ORDER BY timestamp DESC, id DESC LIMIT 1",
+					array_merge( array( self::table() ), $args )
+				)
+			);
+			if ( '' !== $wpdb->last_error ) {
+				return null;
+			}
+		}
+
+		list( $where, $args ) = self::where( $filters );
+		$args = array_merge( array( self::table() ), $args );
+		$cursor = null;
+		do {
+			$query_args = $args;
+			$range      = '';
+			if ( $cursor ) {
+				$range = ' AND (timestamp > %s OR (timestamp = %s AND id > %d))';
+				array_push( $query_args, $cursor->timestamp, $cursor->timestamp, $cursor->id );
+			}
+			$rows = $wpdb->get_results(
+				$wpdb->prepare( "SELECT id, timestamp, old_stock, new_stock FROM %i{$where}{$range} ORDER BY timestamp, id LIMIT 500", $query_args )
+			);
+			if ( '' !== $wpdb->last_error || ! is_array( $rows ) ) {
+				return null;
+			}
+			foreach ( $rows as $row ) {
+				if ( isset( $previous->new_stock, $row->old_stock ) && (float) $previous->new_stock !== (float) $row->old_stock ) {
+					return array( $previous, $row );
+				}
+				$previous = $row;
+				$cursor   = $row;
+			}
+		} while ( 500 === count( $rows ) );
+
+		return array();
 	}
 
 	public static function count( array $filters ): int {

@@ -410,6 +410,8 @@ final class Admin {
 			echo '<p>' . esc_html__( 'This period has ended. Current stock can include later changes.', 'admin_texts_wc_stock_audittrail' ) . '</p>';
 		}
 
+		$this->stock_continuity( $filters );
+
 		echo '<h2>' . esc_html__( 'Changes by source', 'admin_texts_wc_stock_audittrail' ) . '</h2>';
 		foreach ( $breakdown as $row ) {
 			$row->added   = number_format_i18n( $row->added );
@@ -424,6 +426,42 @@ final class Admin {
 		$table->prepare_items();
 		$table->display();
 		echo '</div>';
+	}
+
+	private function stock_continuity( array $filters ): void {
+		echo '<h2>' . esc_html__( 'Audit continuity', 'admin_texts_wc_stock_audittrail' ) . '</h2>';
+		$gap = Storage::first_stock_gap( $filters );
+		if ( null === $gap ) {
+			echo '<p>' . esc_html__( 'Audit continuity could not be checked. Try again later.', 'admin_texts_wc_stock_audittrail' ) . '</p>';
+			return;
+		}
+		if ( ! $gap ) {
+			echo '<p>' . esc_html__( 'No mismatch was found between consecutive entries with known quantities. Changes that left no trace may still be missing.', 'admin_texts_wc_stock_audittrail' ) . '</p>';
+			return;
+		}
+
+		list( $previous, $next ) = $gap;
+		$difference = (float) $next->old_stock - (float) $previous->new_stock;
+		echo '<div class="notice notice-warning inline"><p><strong>';
+		echo esc_html(
+			sprintf(
+				/* translators: 1: Local date and time of the next entry. 2: Previous closing stock. 3: Next opening stock. 4: Signed quantity difference. */
+				__( 'First stock gap at %1$s. Previous closing stock: %2$s. Next opening stock: %3$s. Difference: %4$s.', 'admin_texts_wc_stock_audittrail' ),
+				get_date_from_gmt( $next->timestamp, 'Y-m-d H:i:s' ),
+				number_format_i18n( (float) $previous->new_stock ),
+				number_format_i18n( (float) $next->old_stock ),
+				( $difference > 0 ? '+' : '' ) . number_format_i18n( $difference )
+			)
+		);
+		echo '</strong></p><p>';
+		printf(
+			'<a href="%s">%s</a> | <a href="%s">%s</a>',
+			esc_url( self::url( array( 'entry' => $previous->id ) ) ),
+			esc_html__( 'Previous entry', 'admin_texts_wc_stock_audittrail' ),
+			esc_url( self::url( array( 'entry' => $next->id ) ) ),
+			esc_html__( 'Next entry', 'admin_texts_wc_stock_audittrail' )
+		);
+		echo '</p></div>';
 	}
 
 	private function detail( int $id ): void {
@@ -477,8 +515,49 @@ final class Admin {
 
 	public function dashboard(): void {
 		if ( current_user_can( self::VIEW ) ) {
+			wp_add_dashboard_widget( 'stock_audit_diagnostics', __( 'Stock audit diagnostics', 'admin_texts_wc_stock_audittrail' ), array( $this, 'dashboard_diagnostics' ) );
 			wp_add_dashboard_widget( 'stock_audit_latest', __( 'Latest stock mutations', 'admin_texts_wc_stock_audittrail' ), array( $this, 'dashboard_rows' ) );
 		}
+	}
+
+	public function dashboard_diagnostics(): void {
+		$this->authorize( self::VIEW );
+		$failures = Storage::failures();
+		if ( null === $failures ) {
+			echo '<p>' . esc_html__( 'Audit diagnostics are unavailable. Check the WooCommerce logs.', 'admin_texts_wc_stock_audittrail' ) . '</p>';
+			return;
+		}
+		if ( ! $failures ) {
+			echo '<p>' . esc_html__( 'No capture failures have been recorded since diagnostics were enabled.', 'admin_texts_wc_stock_audittrail' ) . '</p>';
+			return;
+		}
+
+		echo '<p>' . esc_html__( 'Counts show recorded capture failures by type. A failure may have occurred before WooCommerce completed the stock change.', 'admin_texts_wc_stock_audittrail' ) . '</p>';
+		echo '<ul>';
+		foreach ( $failures as $failure ) {
+			$label = match ( $failure->failure_type ) {
+				'lock_timeout'    => __( 'Stock lock timed out', 'admin_texts_wc_stock_audittrail' ),
+				'lock_error'      => __( 'Stock lock database error', 'admin_texts_wc_stock_audittrail' ),
+				'snapshot_error'  => __( 'Stock snapshot failed', 'admin_texts_wc_stock_audittrail' ),
+				'insert_error'    => __( 'Audit insert failed', 'admin_texts_wc_stock_audittrail' ),
+				'product_missing' => __( 'Stock owner unavailable', 'admin_texts_wc_stock_audittrail' ),
+				default           => $failure->failure_type,
+			};
+			$id = (int) $failure->stock_owner_id;
+			$product = wc_get_product( $id );
+			/* translators: %d: ID of the product or variation managing stock. */
+			$title = $product ? $product->get_name() : sprintf( __( 'Stock owner #%d', 'admin_texts_wc_stock_audittrail' ), $id );
+			printf(
+				'<li><strong>%s</strong> %s<br>%s <a href="%s">%s</a></li>',
+				esc_html( $label ),
+				esc_html( number_format_i18n( (float) $failure->occurrences ) ),
+				esc_html( get_date_from_gmt( $failure->last_seen, 'Y-m-d H:i:s' ) ),
+				esc_url( self::url( array( 'stock_history' => $id ) ) ),
+				esc_html( $title )
+			);
+		}
+		echo '</ul>';
+		echo '<p>' . esc_html__( 'For individual incidents, see the WooCommerce log source woocommerce-stock-audit-log.', 'admin_texts_wc_stock_audittrail' ) . '</p>';
 	}
 
 	public function dashboard_rows(): void {

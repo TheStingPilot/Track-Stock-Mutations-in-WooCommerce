@@ -34,6 +34,12 @@ For a period that reaches the present, the screen checks the last logged quantit
 
 Audit tables scroll within a fixed-height area. Pagination remains available outside the scrolling audit list.
 
+### Check audit continuity and capture failures
+
+In a product's stock history, **Audit continuity** checks whether the closing quantity of one entry matches the opening quantity of the next. If there is a difference, it shows the first mismatch, the signed quantity difference, and links to both entries. This check can reveal a gap even when the calculated closing stock matches WooCommerce. Entries with unknown quantities cannot establish a match across that boundary.
+
+Open **Dashboard → Stock audit diagnostics** to see recorded failures by type. Each item shows a cumulative count since diagnostics were enabled, the most recent timestamp, and the affected stock owner. Use the WooCommerce log source `woocommerce-stock-audit-log` to investigate individual incidents.
+
 ### Example investigations
 
 | Question | Where to look | Example result |
