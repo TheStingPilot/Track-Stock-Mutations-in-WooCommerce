@@ -303,9 +303,12 @@ final class Stock_Audit_Log {
 			}
 		}
 
-		$old  = null === $old ? null : number_format( (float) $old, 2, '.', '' );
-		$new  = null === $new ? null : number_format( (float) $new, 2, '.', '' );
-		$diff = null === $old || null === $new ? null : number_format( (float) $new - (float) $old, 2, '.', '' );
+		$old  = null === $old ? null : number_format( (float) $old, 0, '.', '' );
+		$new  = null === $new ? null : number_format( (float) $new, 0, '.', '' );
+		if ( $old === $new ) {
+			return;
+		}
+		$diff = null === $old || null === $new ? null : number_format( (float) $new - (float) $old, 0, '.', '' );
 
 		if ( ! Storage::insert(
 			array(

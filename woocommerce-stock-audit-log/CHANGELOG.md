@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.1 — 2026-11-09
+
+- Store and display stock quantities as whole units using `DECIMAL(12,0)`.
+- Upgrade existing audit tables and recalculate differences from the whole-unit snapshots.
+
 ## 1.0.0 — 2026-11-09
 
 - Made the administration interface translatable using WordPress gettext and WPML String Translation.

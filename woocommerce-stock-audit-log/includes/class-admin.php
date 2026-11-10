@@ -37,6 +37,12 @@ final class Admin {
 		add_submenu_page( 'woocommerce', __( 'Stock Audit Settings', 'admin_texts_wc_stock_audittrail' ), __( 'Stock Audit Settings', 'admin_texts_wc_stock_audittrail' ), self::MANAGE, self::SETTINGS, array( $this, 'settings' ) );
 	}
 
+	private function upgrade_schema(): void {
+		if ( current_user_can( self::MANAGE ) && ! Storage::upgrade_quantities() ) {
+			echo '<div class="notice notice-error"><p>' . esc_html__( 'The whole-stock schema upgrade could not be completed. Check the database and reopen the audit page to retry.', 'admin_texts_wc_stock_audittrail' ) . '</p></div>';
+		}
+	}
+
 	public static function url( array $args = array() ): string {
 		return add_query_arg( array_merge( array( 'page' => self::LOG ), $args ), admin_url( 'admin.php' ) );
 	}
@@ -98,6 +104,7 @@ final class Admin {
 
 	public function screen(): void {
 		$this->authorize( self::VIEW );
+		$this->upgrade_schema();
 		$id = absint( self::input( $_GET, 'entry' ) );
 		if ( $id ) {
 			$this->detail( $id );
@@ -250,6 +257,9 @@ final class Admin {
 			return '&mdash;';
 		}
 
+		if ( in_array( $field, array( 'old_stock', 'new_stock', 'difference' ), true ) ) {
+			return esc_html( number_format_i18n( (float) $value ) );
+		}
 		if ( 'source' === $field ) {
 			return esc_html( self::source_label( $value ) );
 		}
@@ -359,7 +369,7 @@ final class Admin {
 		$closing = $last->new_stock ?? null;
 		$initial_snapshot = null === $opening && isset( $first->new_stock );
 		$baseline = $initial_snapshot ? $first->new_stock : $opening;
-		$expected = null !== $baseline && (int) $initial_snapshot === $unknown ? round( (float) $baseline + $added - $removed, 2 ) : null;
+		$expected = null !== $baseline && (int) $initial_snapshot === $unknown ? round( (float) $baseline + $added - $removed ) : null;
 		$live_period = empty( $filters['until'] ) || $filters['until'] > gmdate( 'Y-m-d H:i:s' );
 		echo '<h2>' . esc_html__( 'Stock reconciliation', 'admin_texts_wc_stock_audittrail' ) . '</h2>';
 		echo '<p>' . esc_html__( 'Opening stock is the quantity before the first retained change in the selected period. Closing stock is the last logged quantity. Current stock is read from WooCommerce.', 'admin_texts_wc_stock_audittrail' ) . '</p>';
@@ -372,22 +382,22 @@ final class Admin {
 			array( __( 'Last logged closing stock', 'admin_texts_wc_stock_audittrail' ), $closing ),
 			array( __( 'Current WooCommerce stock', 'admin_texts_wc_stock_audittrail' ), $current ),
 		) as list( $label, $quantity ) ) {
-			printf( '<div><dt>%s</dt><dd>%s</dd></div>', esc_html( $label ), null === $quantity ? '&mdash;' : esc_html( number_format_i18n( (float) $quantity, 2 ) ) );
+			printf( '<div><dt>%s</dt><dd>%s</dd></div>', esc_html( $label ), null === $quantity ? '&mdash;' : esc_html( number_format_i18n( (float) $quantity ) ) );
 		}
 		echo '</dl>';
 
 		if ( $last && $live_period && null !== $closing && null !== $current ) {
-			$gap = round( (float) $current - (float) $closing, 2 );
+			$gap = round( (float) $current ) - round( (float) $closing );
 			if ( 0.0 === $gap ) {
 				echo '<p><strong>' . esc_html__( 'Last logged closing stock matches WooCommerce.', 'admin_texts_wc_stock_audittrail' ) . '</strong></p>';
 			} else {
 				/* translators: %s: Difference between current and logged stock. */
-				printf( '<p><strong>%s</strong></p>', esc_html( sprintf( __( 'Stock discrepancy: current WooCommerce stock minus last logged closing stock is %s.', 'admin_texts_wc_stock_audittrail' ), number_format_i18n( $gap, 2 ) ) ) );
+				printf( '<p><strong>%s</strong></p>', esc_html( sprintf( __( 'Stock discrepancy: current WooCommerce stock minus last logged closing stock is %s.', 'admin_texts_wc_stock_audittrail' ), number_format_i18n( $gap ) ) ) );
 			}
 		}
-		if ( null !== $expected && null !== $closing && 0.0 !== round( (float) $closing - $expected, 2 ) ) {
+		if ( null !== $expected && null !== $closing && 0.0 !== round( (float) $closing - $expected ) ) {
 			/* translators: %s: Difference between logged and calculated stock. */
-			printf( '<p><strong>%s</strong></p>', esc_html( sprintf( __( 'Audit discrepancy: logged closing stock minus calculated closing stock is %s.', 'admin_texts_wc_stock_audittrail' ), number_format_i18n( (float) $closing - $expected, 2 ) ) ) );
+			printf( '<p><strong>%s</strong></p>', esc_html( sprintf( __( 'Audit discrepancy: logged closing stock minus calculated closing stock is %s.', 'admin_texts_wc_stock_audittrail' ), number_format_i18n( (float) $closing - $expected ) ) ) );
 		}
 		if ( $initial_snapshot ) {
 			echo '<p>' . esc_html__( 'The first audit entry establishes the starting quantity. The quantity before that entry is unknown.', 'admin_texts_wc_stock_audittrail' ) . '</p>';
@@ -402,8 +412,8 @@ final class Admin {
 
 		echo '<h2>' . esc_html__( 'Changes by source', 'admin_texts_wc_stock_audittrail' ) . '</h2>';
 		foreach ( $breakdown as $row ) {
-			$row->added   = number_format_i18n( $row->added, 2 );
-			$row->removed = number_format_i18n( $row->removed, 2 );
+			$row->added   = number_format_i18n( $row->added );
+			$row->removed = number_format_i18n( $row->removed );
 		}
 		$this->render_table( array( 'label' => __( 'Source', 'admin_texts_wc_stock_audittrail' ), 'added' => __( 'Added', 'admin_texts_wc_stock_audittrail' ), 'removed' => __( 'Removed', 'admin_texts_wc_stock_audittrail' ) ), $breakdown );
 
@@ -499,6 +509,7 @@ final class Admin {
 
 	public function settings(): void {
 		$this->authorize( self::MANAGE );
+		$this->upgrade_schema();
 		echo '<div class="wrap"><h1>' . esc_html__( 'Stock Audit Settings', 'admin_texts_wc_stock_audittrail' ) . '</h1>';
 		if ( '1' === self::input( $_GET, 'saved' ) ) {
 			echo '<div class="notice notice-success"><p>' . esc_html__( 'Settings saved.', 'admin_texts_wc_stock_audittrail' ) . '</p></div>';
@@ -553,6 +564,9 @@ final class Admin {
 				$line = array();
 				foreach ( $fields as $field ) {
 					$value = (string) ( $row->$field ?? '' );
+					if ( '' !== $value && in_array( $field, array( 'old_stock', 'new_stock', 'difference' ), true ) ) {
+						$value = number_format( (float) $value, 0, '.', '' );
+					}
 					if ( ! in_array( $field, $numeric, true ) && preg_match( '/^(?:[\t\r\n]|\s*[=+@-])/u', $value ) ) {
 						$value = "'" . $value;
 					}

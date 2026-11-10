@@ -53,9 +53,77 @@ final class Storage {
 			}
 		}
 
+		if ( ! self::upgrade_quantities() ) {
+			wp_die( esc_html__( 'The whole-stock schema upgrade could not be completed. Check the database and try again.', 'admin_texts_wc_stock_audittrail' ) );
+		}
+
 		if ( ! wp_next_scheduled( self::CLEANUP_HOOK ) ) {
 			wp_schedule_event( time() + HOUR_IN_SECONDS, 'hourly', self::CLEANUP_HOOK );
 		}
+	}
+
+	/**
+	 * Upgrade existing installations without adding work to stock writes.
+	 */
+	public static function upgrade_quantities(): bool {
+		global $wpdb;
+		$settings = self::settings_table();
+		$key      = 'whole_stock_schema';
+		$check    = $wpdb->prepare( 'SELECT setting_value FROM %i WHERE setting_key = %s', $settings, $key );
+		if ( '1' === (string) $wpdb->get_var( $check ) ) {
+			return true;
+		}
+
+		$lock = 'wsal-schema:' . substr( hash( 'sha256', DB_NAME . '/' . self::table() ), 0, 48 );
+		if ( '1' !== (string) $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s, %d)', $lock, 2 ) ) ) {
+			return false;
+		}
+
+		try {
+			if ( '1' === (string) $wpdb->get_var( $check ) ) {
+				return true;
+			}
+			return self::migrate_quantity_columns() && false !== $wpdb->replace(
+				$settings,
+				array( 'setting_key' => $key, 'setting_value' => 1 ),
+				array( '%s', '%d' )
+			);
+		} finally {
+			$wpdb->get_var( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $lock ) );
+		}
+	}
+
+	private static function migrate_quantity_columns(): bool {
+		global $wpdb;
+		$table   = self::table();
+		$columns = $wpdb->get_results( $wpdb->prepare( 'SHOW COLUMNS FROM %i', $table ), OBJECT_K );
+		foreach ( array( 'old_stock', 'new_stock', 'difference' ) as $column ) {
+			if ( ! isset( $columns[ $column ] ) ) {
+				return false;
+			}
+		}
+
+		if ( 'decimal(12,0)' !== $columns['old_stock']->Type || 'decimal(12,0)' !== $columns['new_stock']->Type || 'decimal(12,0)' !== $columns['difference']->Type ) {
+			$altered = $wpdb->query(
+				$wpdb->prepare(
+					'ALTER TABLE %i MODIFY old_stock decimal(12,0) DEFAULT NULL,
+						MODIFY new_stock decimal(12,0) DEFAULT NULL, MODIFY difference decimal(12,0) DEFAULT NULL',
+					$table
+				)
+			);
+			if ( false === $altered ) {
+				return false;
+			}
+		}
+
+		// Independently rounding the old delta can disagree with the rounded snapshots.
+		$updated = $wpdb->query(
+			$wpdb->prepare(
+				'UPDATE %i SET difference = new_stock - old_stock WHERE NOT (difference <=> (new_stock - old_stock))',
+				$table
+			)
+		);
+		return false !== $updated;
 	}
 
 	public static function deactivate(): void {
